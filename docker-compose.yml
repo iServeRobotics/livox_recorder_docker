@@ -24,11 +24,8 @@ services:
       - aws_key.env
     volumes:
       - ./bags:/bags:ro
+    hostname: ${HOSTNAME}
     entrypoint: >
-      sh -c 'aws s3 sync /bags s3://$${S3_BUCKET}/$$(hostname)/
-        --exclude "*/lock/*" &&
-        echo "" &&
-        echo "Thank you for contributing to the eval pipeline!" &&
-        echo ""'
+      sh -c 'aws s3 sync /bags "s3://$${S3_BUCKET}/$${HOSTNAME}/" --exclude "*/lock/*" && echo "" && echo "Thank you for contributing to the eval pipeline!" && echo ""'
     profiles:
       - upload
