@@ -1,4 +1,5 @@
 bags/
+aws_key.env
 livox_ros_driver2/
 build.sh
 Dockerfile

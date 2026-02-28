@@ -16,3 +16,18 @@ services:
       - ./bags:/ros2_ws/bags
     shm_size: '2g'
     restart: unless-stopped
+
+  s3-upload:
+    image: amazon/aws-cli:latest
+    container_name: s3-upload
+    env_file:
+      - aws_key.env
+    volumes:
+      - ./bags:/bags:ro
+    entrypoint: >
+      sh -c 'while true; do
+        aws s3 sync /bags s3://$${S3_BUCKET}/$$(hostname)/
+        --exclude "*/lock/*";
+        sleep 300;
+      done'
+    restart: unless-stopped
