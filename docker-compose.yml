@@ -26,6 +26,9 @@ services:
       - ./bags:/bags:ro
     entrypoint: >
       sh -c 'aws s3 sync /bags s3://$${S3_BUCKET}/$$(hostname)/
-        --exclude "*/lock/*"'
+        --exclude "*/lock/*" &&
+        echo "" &&
+        echo "Thank you for contributing to the eval pipeline!" &&
+        echo ""'
     profiles:
       - upload
