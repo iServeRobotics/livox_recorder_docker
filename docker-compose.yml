@@ -25,9 +25,7 @@ services:
     volumes:
       - ./bags:/bags:ro
     entrypoint: >
-      sh -c 'while true; do
-        aws s3 sync /bags s3://$${S3_BUCKET}/$$(hostname)/
-        --exclude "*/lock/*";
-        sleep 300;
-      done'
-    restart: unless-stopped
+      sh -c 'aws s3 sync /bags s3://$${S3_BUCKET}/$$(hostname)/
+        --exclude "*/lock/*"'
+    profiles:
+      - upload

@@ -37,3 +37,11 @@ docker compose up
 ```
 
 Bags are saved to `./bags/<YYYYMMDD_HHMMSS>_<hostname>/`. Press `Ctrl+C` to stop.
+
+## Upload to S3
+
+```bash
+docker compose --profile upload run --rm s3-upload
+```
+
+`--rm` removes the container after upload completes to avoid leftover stopped containers.
