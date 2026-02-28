@@ -1,0 +1,18 @@
+services:
+  livox-recorder:
+    image: iserverobotics/livox_recorder:jazzy
+    container_name: livox-recorder
+    network_mode: host
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-42}
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - LIDAR_INTERFACE=${LIDAR_INTERFACE:-eth0}
+      - LIDAR_COMPUTER_IP=${LIDAR_COMPUTER_IP:-192.168.1.5}
+      - LIDAR_IP=${LIDAR_IP:-192.168.1.116}
+    volumes:
+      - ./bags:/ros2_ws/bags
+    shm_size: '2g'
+    restart: unless-stopped
