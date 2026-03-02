@@ -1,2 +1,7 @@
 bags/
 aws_key.env
+build.sh
+Dockerfile
+launch_recorder.py
+.dockerignore
+livox_ros_driver2/
