@@ -1,0 +1,4 @@
+bags/
+*.bag
+*.mcap
+.env
