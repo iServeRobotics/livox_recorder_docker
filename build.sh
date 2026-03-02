@@ -71,25 +71,29 @@ echo ""
 if [ "${MANIFEST}" = true ]; then
     ARCH_TAG="${IMAGE_TAG}-${DOCKER_ARCH}"
 
-    docker build \
-        -f "${SCRIPT_DIR}/Dockerfile" \
-        --build-arg ROS_DISTRO=${ROS_DISTRO} \
-        -t ${IMAGE_NAME}:${ARCH_TAG} \
-        "${SCRIPT_DIR}"
-
     echo ""
     echo -e "${YELLOW}Pushing ${IMAGE_NAME}:${ARCH_TAG}...${NC}"
-    docker push ${IMAGE_NAME}:${ARCH_TAG}
+    docker buildx build \
+        -f "${SCRIPT_DIR}/Dockerfile" \
+        --build-arg ROS_DISTRO=${ROS_DISTRO} \
+        --platform linux/${DOCKER_ARCH} \
+        --provenance=false \
+        --push \
+        -t ${IMAGE_NAME}:${ARCH_TAG} \
+        "${SCRIPT_DIR}"
 
     echo ""
     echo -e "${YELLOW}Stitching multi-arch manifest for ${IMAGE_NAME}:${IMAGE_TAG}...${NC}"
     MANIFEST_ARGS=""
     for arch in amd64 arm64; do
-        if docker manifest inspect ${IMAGE_NAME}:${IMAGE_TAG}-${arch} &>/dev/null; then
+        INSPECT=$(docker manifest inspect ${IMAGE_NAME}:${IMAGE_TAG}-${arch} 2>/dev/null)
+        if [ -z "${INSPECT}" ]; then
+            echo -e "  ${YELLOW}Not found: ${IMAGE_NAME}:${IMAGE_TAG}-${arch} (skipping)${NC}"
+        elif echo "${INSPECT}" | grep -q '"mediaType": "application/vnd.docker.distribution.manifest.list'; then
+            echo -e "  ${RED}Skipping: ${IMAGE_NAME}:${IMAGE_TAG}-${arch} is a manifest list (not a plain image — rebuild with --manifest)${NC}"
+        else
             MANIFEST_ARGS="${MANIFEST_ARGS} ${IMAGE_NAME}:${IMAGE_TAG}-${arch}"
             echo -e "  Found: ${IMAGE_NAME}:${IMAGE_TAG}-${arch}"
-        else
-            echo -e "  ${YELLOW}Not found: ${IMAGE_NAME}:${IMAGE_TAG}-${arch} (skipping)${NC}"
         fi
     done
 
