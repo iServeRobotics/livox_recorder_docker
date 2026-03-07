@@ -30,6 +30,12 @@ LIDAR_COMPUTER_IP=192.168.1.5  # your computer's IP on that subnet
 LIDAR_IP=192.168.1.116         # your lidar's IP
 ```
 
+## Update Docker Image
+
+```bash
+docker pull iserverobotics/livox_recorder:jazzy
+```
+
 ## Record
 
 ```bash
