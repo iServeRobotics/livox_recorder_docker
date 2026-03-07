@@ -33,7 +33,7 @@ LIDAR_IP=192.168.1.116         # your lidar's IP
 ## Update Docker Image
 
 ```bash
-docker pull iserverobotics/livox_recorder:jazzy
+docker compose pull livox-recorder
 ```
 
 ## Record
