@@ -6,6 +6,29 @@ source /opt/ros/${ROS_DISTRO}/setup.bash
 source ${WORKSPACE}/install/setup.bash
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 
+# Disable FastDDS shared memory transport — SHM is isolated between Docker
+# containers even with network_mode:host, so force UDP for cross-container comms
+export FASTRTPS_DEFAULT_PROFILES_FILE=/tmp/fastdds_no_shm.xml
+cat > /tmp/fastdds_no_shm.xml <<'XMLEOF'
+<?xml version="1.0" encoding="UTF-8" ?>
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+    <transport_descriptors>
+        <transport_descriptor>
+            <transport_id>udp_transport</transport_id>
+            <type>UDPv4</type>
+        </transport_descriptor>
+    </transport_descriptors>
+    <participant profile_name="disable_shm" is_default_profile="true">
+        <rtps>
+            <userTransports>
+                <transport_id>udp_transport</transport_id>
+            </userTransports>
+            <useBuiltinTransports>false</useBuiltinTransports>
+        </rtps>
+    </participant>
+</profiles>
+XMLEOF
+
 # Configure lidar network interface if specified
 if [ -n "${LIDAR_INTERFACE}" ] && [ -n "${LIDAR_COMPUTER_IP}" ]; then
     ip addr add ${LIDAR_COMPUTER_IP}/24 dev ${LIDAR_INTERFACE} 2>/dev/null || true
@@ -52,19 +75,19 @@ echo "=========================================="
 echo " Bag output: ${BAG_PATH}"
 echo " Format:     mcap"
 echo " Split:      every 60 seconds"
-echo " Topics:     /livox/lidar /livox/imu"
 echo "=========================================="
 
 # Check if livox driver is already running by looking for standard topics
-# (custom /livox/* topics require livox_ros_driver2 msgs to be discovered,
-#  but /lidar/scan and /imu/data use standard types and are always visible)
+# (/lidar/scan uses standard types and is always visible across containers,
+#  while /livox/* custom topics may not be due to message type hash differences)
 TOPICS_EXIST=false
+RECORD_TOPICS=""
 for i in $(seq 1 10); do
     EXISTING_TOPICS=$(ros2 topic list 2>/dev/null || true)
-    if echo "${EXISTING_TOPICS}" | grep -q "^/livox/lidar$" || \
-       echo "${EXISTING_TOPICS}" | grep -q "^/lidar/scan$"; then
+    if echo "${EXISTING_TOPICS}" | grep -q "^/lidar/scan$"; then
         TOPICS_EXIST=true
-        echo "Livox topics already detected — skipping driver launch."
+        RECORD_TOPICS="/lidar/scan /imu/data"
+        echo "Livox driver already running — recording /lidar/scan and /imu/data"
         break
     fi
     echo "Waiting for livox topics... (attempt ${i}/10)"
@@ -76,14 +99,16 @@ if [ "${TOPICS_EXIST}" = "false" ]; then
     # Launch livox driver (custom launch without topic remapping)
     ros2 launch /ros2_ws/launch_recorder.py &
     DRIVER_PID=$!
+    RECORD_TOPICS="/livox/lidar /livox/imu"
     echo "Launched livox driver (PID: ${DRIVER_PID}), waiting for init..."
     sleep 3
 fi
 
+echo " Topics:     ${RECORD_TOPICS}"
+
 # Start bag recording with mcap, split every 60s
 ros2 bag record \
-    /livox/lidar \
-    /livox/imu \
+    ${RECORD_TOPICS} \
     --storage mcap \
     --max-bag-duration 60 \
     --output "${BAG_PATH}" &
