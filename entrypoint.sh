@@ -55,14 +55,21 @@ echo " Split:      every 60 seconds"
 echo " Topics:     /livox/lidar /livox/imu"
 echo "=========================================="
 
-# Check if livox topics are already available
+# Check if livox driver is already running by looking for standard topics
+# (custom /livox/* topics require livox_ros_driver2 msgs to be discovered,
+#  but /lidar/scan and /imu/data use standard types and are always visible)
 TOPICS_EXIST=false
-EXISTING_TOPICS=$(ros2 topic list 2>/dev/null || true)
-if echo "${EXISTING_TOPICS}" | grep -q "^/livox/lidar$" && \
-   echo "${EXISTING_TOPICS}" | grep -q "^/livox/imu$"; then
-    TOPICS_EXIST=true
-    echo "Livox topics already detected — skipping driver launch."
-fi
+for i in $(seq 1 10); do
+    EXISTING_TOPICS=$(ros2 topic list 2>/dev/null || true)
+    if echo "${EXISTING_TOPICS}" | grep -q "^/livox/lidar$" || \
+       echo "${EXISTING_TOPICS}" | grep -q "^/lidar/scan$"; then
+        TOPICS_EXIST=true
+        echo "Livox topics already detected — skipping driver launch."
+        break
+    fi
+    echo "Waiting for livox topics... (attempt ${i}/10)"
+    sleep 2
+done
 
 DRIVER_PID=""
 if [ "${TOPICS_EXIST}" = "false" ]; then
