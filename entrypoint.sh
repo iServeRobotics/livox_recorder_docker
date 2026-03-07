@@ -55,12 +55,23 @@ echo " Split:      every 60 seconds"
 echo " Topics:     /livox/lidar /livox/imu"
 echo "=========================================="
 
-# Launch livox driver (custom launch without topic remapping)
-ros2 launch /ros2_ws/launch_recorder.py &
-DRIVER_PID=$!
+# Check if livox topics are already available
+TOPICS_EXIST=false
+EXISTING_TOPICS=$(ros2 topic list 2>/dev/null || true)
+if echo "${EXISTING_TOPICS}" | grep -q "^/livox/lidar$" && \
+   echo "${EXISTING_TOPICS}" | grep -q "^/livox/imu$"; then
+    TOPICS_EXIST=true
+    echo "Livox topics already detected — skipping driver launch."
+fi
 
-# Wait for driver to initialize
-sleep 3
+DRIVER_PID=""
+if [ "${TOPICS_EXIST}" = "false" ]; then
+    # Launch livox driver (custom launch without topic remapping)
+    ros2 launch /ros2_ws/launch_recorder.py &
+    DRIVER_PID=$!
+    echo "Launched livox driver (PID: ${DRIVER_PID}), waiting for init..."
+    sleep 3
+fi
 
 # Start bag recording with mcap, split every 60s
 ros2 bag record \
@@ -71,7 +82,7 @@ ros2 bag record \
     --output "${BAG_PATH}" &
 RECORD_PID=$!
 
-echo "Driver PID: ${DRIVER_PID}, Recorder PID: ${RECORD_PID}"
+echo "Recorder PID: ${RECORD_PID}"
 
 # Graceful shutdown handler
 shutdown() {
@@ -79,15 +90,21 @@ shutdown() {
     echo "Stopping recorder..."
     kill ${RECORD_PID} 2>/dev/null || true
     wait ${RECORD_PID} 2>/dev/null || true
-    echo "Stopping driver..."
-    kill ${DRIVER_PID} 2>/dev/null || true
-    wait ${DRIVER_PID} 2>/dev/null || true
+    if [ -n "${DRIVER_PID}" ]; then
+        echo "Stopping driver..."
+        kill ${DRIVER_PID} 2>/dev/null || true
+        wait ${DRIVER_PID} 2>/dev/null || true
+    fi
     echo "Done. Bags saved to: ${BAG_PATH}"
     exit 0
 }
 
 trap shutdown SIGINT SIGTERM
 
-# Wait for either process to exit
-wait -n ${DRIVER_PID} ${RECORD_PID} 2>/dev/null || true
+# Wait for process(es) to exit
+if [ -n "${DRIVER_PID}" ]; then
+    wait -n ${DRIVER_PID} ${RECORD_PID} 2>/dev/null || true
+else
+    wait ${RECORD_PID} 2>/dev/null || true
+fi
 shutdown
