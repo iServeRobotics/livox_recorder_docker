@@ -29,7 +29,7 @@ services:
         cd /bags &&
         aws s3 sync . "s3://$${S3_BUCKET}/$${S3_PREFIX}/" --exclude "*/lock/*" |
         while IFS= read -r line; do
-          file=$$(echo "$$line" | sed -n "s/^upload: \.\/*\([^ ]*\) to .*/\1/p")
+          file=$$(echo "$$line" | sed -n "s/^upload: \([^ ]*\) to .*/\1/p")
           if [ -n "$$file" ] && [ -f "$$file" ]; then
             size=$$(du -h "$$file" | cut -f1)
             echo "$$line ($$size)"
