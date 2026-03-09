@@ -27,7 +27,22 @@ services:
     entrypoint: >
       sh -c '
         cd /bags &&
-        aws s3 sync . "s3://$${S3_BUCKET}/$${S3_PREFIX}/" --exclude "*/lock/*" &&
+        echo "Uploading to s3://$${S3_BUCKET}/$${S3_PREFIX}/ ..." &&
+        aws s3 sync . "s3://$${S3_BUCKET}/$${S3_PREFIX}/" --exclude "*/lock/*" 2>&1 ;
+        echo "" &&
+        echo "Verifying upload..." &&
+        LOCAL_COUNT=$$(find . -type f ! -path "*/lock/*" | wc -l) &&
+        REMOTE_COUNT=$$(aws s3 ls "s3://$${S3_BUCKET}/$${S3_PREFIX}/" --recursive | wc -l) &&
+        if [ "$$LOCAL_COUNT" -ne "$$REMOTE_COUNT" ]; then
+          echo "WARNING: Local has $$LOCAL_COUNT files but S3 has $$REMOTE_COUNT. Retrying sync..." &&
+          aws s3 sync . "s3://$${S3_BUCKET}/$${S3_PREFIX}/" --exclude "*/lock/*" 2>&1 &&
+          REMOTE_COUNT=$$(aws s3 ls "s3://$${S3_BUCKET}/$${S3_PREFIX}/" --recursive | wc -l) &&
+          if [ "$$LOCAL_COUNT" -ne "$$REMOTE_COUNT" ]; then
+            echo "ERROR: Upload incomplete. Local: $$LOCAL_COUNT files, S3: $$REMOTE_COUNT files" &&
+            exit 1
+          ; fi
+        ; fi &&
+        echo "Verified: all $$LOCAL_COUNT files uploaded." &&
         echo "" &&
         echo "Uploaded files:" &&
         find . -type f ! -path "*/lock/*" -exec ls -lh {} \; | awk "{printf \"  %s %s\n\", \$$5, \$$NF}" &&
