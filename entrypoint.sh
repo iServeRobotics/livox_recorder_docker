@@ -110,6 +110,8 @@ echo " Topics:     ${RECORD_TOPICS}"
 ros2 bag record \
     ${RECORD_TOPICS} \
     --storage mcap \
+    --compression-mode chunk \
+    --compression-format zstd \
     --max-bag-duration 60 \
     --output "${BAG_PATH}" &
 RECORD_PID=$!
